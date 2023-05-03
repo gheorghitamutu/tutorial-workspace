@@ -1,54 +1,67 @@
-//Load openDSU enviroment
+// load environment
 require("../opendsu-sdk/psknode/bundles/openDSU");
 
-//Load openDSU SDK
+// load SDK
 const opendsu = require("opendsu");
 
-//Load resolver library
+// load libraries
 const resolver = opendsu.loadApi("resolver");
-
-//Load keyssi library
 const keyssispace = opendsu.loadApi("keyssi");
 
-//Create a template keySSI (for default domain). See /conf/BDNS.hosts.json
+// Create a template keySSI (for default domain). See /conf/BDNS.hosts.json.
 const templateSSI = keyssispace.createTemplateSeedSSI('default');
 
 let data = {"message": "Hello world!"};
 
-
-//Create a DSU
 resolver.createDSU(templateSSI, (err, dsuInstance) => {
-    //Reached when DSU created
     if (err) {
         throw err;
     }
 
-    //Methods found in: /modules/bar/lib/Archive.js
+    // Methods found in: /modules/bar/lib/Archive.js
     dsuInstance.writeFile('/data', JSON.stringify(data), (err) => {
-        //Reached when data written to BrickStorage
-
+        // Reached when data written to BrickStorage
         if (err) {
             throw err;
         }
-        console.log("Data written succesfully! :)");
+        console.log("Data written successfully! :)");
 
+        dsuInstance.getKeySSIAsString((err, keyIdentifier) => {
+            console.log("KeySSI identifier: ", keyIdentifier);
 
-        dsuInstance.getKeySSIAsString((err, keyidentifier) => {
-            console.log("KeySSI identifier: ", keyidentifier);
-
-            resolver.loadDSU(keyidentifier, (err, anotherDSUInstance) => {
+            resolver.loadDSU(keyIdentifier, (err, anotherDSUInstance) => {
                 if (err) {
                     throw err;
                 }
 
                 anotherDSUInstance.readFile('/data', (err, data) => {
-                    //Reached when data loaded
                     if (err) {
                         throw err;
                     }
 
-                    const dataObject = JSON.parse(data.toString()); //Convert data (buffer) to string and then to JSON
-                    console.log("Data load succesfully! :)", dataObject.message); //Print message to console
+                    const dataObject = JSON.parse(data.toString());
+                    console.log("Data load successfully! :)", dataObject.message);
+                });
+
+                let options = {
+                    'recursive': true,
+                    'ignoreMounts': false
+                }
+
+                dsuInstance.listFolders('/', options, (err, p) => {
+                    if (err) {
+                        throw err;
+                    }
+
+                    console.log("Folder: ", p);
+                });
+
+                dsuInstance.listFiles('/', options, (err, p) => {
+                    if (err) {
+                        throw err;
+                    }
+
+                    console.log("File: ", p);
                 });
             });
         });
