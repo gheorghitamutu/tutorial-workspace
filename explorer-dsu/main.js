@@ -63,6 +63,14 @@ resolver.createDSU(templateSSI, (err, dsuInstance) => {
 
                     console.log("File: ", p);
                 });
+
+                anotherDSUInstance.listMountedDossiers('.', (err, p) => {
+                    if (err) {
+                        throw err;
+                    }
+
+                    console.log("DSU", p);
+                });
             });
         });
     });
