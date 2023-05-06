@@ -20,6 +20,16 @@ const readline = require('readline').createInterface({
     output: process.stdout
 });
 
+/**
+ * Function that interprets the input from the user and executes the command
+ * 
+ * If provided with 'exit', it will stop the execution
+ * 
+ * This function is called inside the recursion of the promptCommand function
+ * 
+ * @param {The input from the user} input 
+ * @param {The DSU instance} dsuInstance 
+ */
 function processCommand(input, dsuInstance) {
     const args = input.trim().split(' ');
     const command = args[0];
@@ -28,7 +38,7 @@ function processCommand(input, dsuInstance) {
         case 'ls':
             dsuInstance.readDir(currentDirectory, { recursive: true }, (err, files) => {
                 if (err) {
-                    console.error(err);
+                    console.error(`Error listing files: ${err}`);
                 } else {
                     console.log(`Listing directory file contents:\n${files.join('\n')}`);
                 }
@@ -36,14 +46,12 @@ function processCommand(input, dsuInstance) {
             break;
         case 'touch':
             const filePath = args[1];
-            const absolutePath = filePath.startsWith('/') ? filePath : `${currentDirectory}/${filePath}`;
-            const fileName = absolutePath.split('/').pop();
-            const directoryPath = absolutePath.split('/').slice(0, -1).join('/');
-            dsuInstance.writeFile(`${directoryPath}/${fileName}`, '', (err) => {
+            let fileToCreate = getAbsolutePath(filePath);
+            dsuInstance.writeFile(fileToCreate, '', (err) => {
                 if (err) {
                     console.error(err);
                 } else {
-                    console.log(`Created file ${fileName} in directory ${directoryPath}`);
+                    console.log(`Created file ${fileToCreate}`);
                 }
             });
             break;
@@ -58,10 +66,7 @@ function processCommand(input, dsuInstance) {
                     currentDirectory = `/${parts.join('/')}`;
                 }
             } else {
-                let targetDirectory = directory.startsWith('/') ? directory : `${currentDirectory}/${directory}`;
-                if (targetDirectory.startsWith('//')) {
-                    targetDirectory = targetDirectory.replace('//', '/');
-                }
+                let targetDirectory = getAbsolutePath(directory)
                 dsuInstance.readDir(targetDirectory, (err, files) => {
                     if (err) {
                         console.error(`Error checking directory ${targetDirectory}: ${err}`);
@@ -73,12 +78,8 @@ function processCommand(input, dsuInstance) {
             }
             break;
         case 'mkdir':
-            const dirPath = args[1];
-            let absDirPath = dirPath.startsWith('/') ? dirPath : `${currentDirectory}/${dirPath}`;
-
-            if (absDirPath.startsWith('//')) {
-                absDirPath = absDirPath.replace('//', '/');
-            }
+            let dirPath = args[1];
+            let absDirPath = getAbsolutePath(dirPath)
             dsuInstance.createFolder(absDirPath, (err) => {
                 if (err) {
                     console.error(`Error creating directory ${absDirPath}: ${err}`);
@@ -87,6 +88,20 @@ function processCommand(input, dsuInstance) {
                 }
             });
             break;
+        case 'rm':
+            let fileToRm = args[1];
+            let absPathToRm = getAbsolutePath(fileToRm)
+            if (absPathToRm == currentDirectory) {
+                console.log('Cannot delete current directory')
+            } else {
+                dsuInstance.delete(absPathToRm, { recursive: true }, (err, files) => {
+                    if (err) {
+                        console.error(`Error deleting file: ${err}`);
+                    } else {
+                        console.log(`Successfully deleted file ${absPathToRm}`);
+                    }
+                });
+            }
         case 'pwd':
             console.log(currentDirectory);
             break;
@@ -99,6 +114,24 @@ function processCommand(input, dsuInstance) {
     }
 }
 
+/**
+ * 
+ * @param {The path of a file, absolute or otherwise} path 
+ * @returns Absolute path of provided file
+ */
+function getAbsolutePath(path) {
+    let absPath = path.startsWith('/') ? path : `${currentDirectory}/${path}`;
+    if (absPath.startsWith('//')) {
+        absPath = absPath.replace('//', '/');
+    }
+    return absPath
+}
+
+/**
+ * Function that prompts the user to provide a command, and then recursively calls itself
+ * 
+ * @param {The DSU instance} dsuInstance 
+ */
 function promptCommand(dsuInstance) {
     readline.question('[' + currentDirectory + '] Enter a command: ', input => {
         console.log('\n');
