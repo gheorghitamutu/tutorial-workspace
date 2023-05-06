@@ -11,6 +11,11 @@ const keyssispace = opendsu.loadApi("keyssi");
 // Create a template keySSI (for default domain). See /conf/BDNS.hosts.json.
 const templateSSI = keyssispace.createTemplateSeedSSI('default');
 
+
+// other requirements
+const fs = require('fs');
+
+
 let data = { "message": "Hello world!" };
 
 let currentDirectory = '/';
@@ -140,10 +145,71 @@ function promptCommand(dsuInstance) {
     });
 }
 
-resolver.createDSU(templateSSI, (err, dsuInstance) => {
-    if (err) {
-        throw err;
-    }
+async function initializeToDefaultDsuCreateIfNotExists() {
 
-    promptCommand(dsuInstance);
-});
+
+    // Create a DSU instance if not exists in dsu_s.json
+
+    //read the dsu_s.json file as json
+    let dsu_s = JSON.parse(fs.readFileSync('dsu_s.json', 'utf8'));
+
+    //check if the file exists
+
+
+    if (dsu_s.dsus.length > 0) {
+        //if it does, load the DSU
+
+        resolver.loadDSU(dsu_s.dsus[0].key, (err, dsuInstance) => {
+            if (err) {
+                throw err;
+            }
+            promptCommand(dsuInstance);
+        });
+        return;
+    }
+    else {
+        //if it doesn't, create a new DSU and save key to dsu_s.json
+
+        // dsuInstance = await $$.promisify(resolver.createDSU)(templateSSI)
+        dsuInstance = await new Promise((resolve, reject) => {
+            resolver.createDSU(templateSSI, (err, dsuInstance) => {
+                if (err) {
+                    reject(err);
+
+                    throw err;
+                }
+
+
+                resolve(dsuInstance);
+            });
+        });
+
+        dsuKey = await new Promise((resolve, reject) => {
+            dsuInstance.getKeySSIAsString((err, key) => {
+                if (err) {
+                    reject(err);
+                    throw err;
+                }
+                resolve(key);
+            });
+        });
+
+        console.log("Created DSU with key: " + dsuKey);
+
+        //save the key to dsu_s.json
+
+        let dsu = {
+            key: dsuKey,
+            name: "default",
+            type: "filesystem like dsu?"
+        }
+
+
+        dsu_s.dsus.push(dsu);
+
+        fs.writeFileSync('dsu_s.json', JSON.stringify(dsu_s), 'utf8');
+    }
+}
+
+
+initializeToDefaultDsuCreateIfNotExists().then(console.log("done"));
