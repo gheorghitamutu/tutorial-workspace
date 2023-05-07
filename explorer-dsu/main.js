@@ -24,7 +24,6 @@ const readline = require('readline').createInterface({
     output: process.stdout
 });
 
-
 /**
  * Function that interprets the input from the user and executes the command
  * If provided with 'exit', it will stop the execution
@@ -130,7 +129,7 @@ function processCommand(input, dsuInstance) {
         case 'sha256':
             let filePathToHash = args[1];
 
-            filePathToRead = getAbsolutePath(filePathToRead);
+            filePathToHash = getAbsolutePath(filePathToHash);
 
             calculateHashForFile(dsuInstance, filePathToHash).then((hash) => {
                 console.log(`SHA256 hash of file ${filePathToHash}: ${hash}`);
@@ -188,7 +187,7 @@ function getAbsolutePath(path) {
 /**
  * Function that prompts the user to provide a command, and then recursively calls itself
  * @method
- * @param {DSUObject} dsuInstance - a DSU instance
+ * @param {*    } dsuInstance - a DSU instance
  */
 function promptCommand(dsuInstance) {
     readline.question('[' + currentDirectory + '] Enter a command: ', input => {
