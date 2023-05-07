@@ -27,3 +27,6 @@ It can be regerenated using the command:
                 jsdoc main.js
 This requires global installation of the jsdoc module:
                 npm install -g jsdoc
+
+### References
+We used the documentation written [here](https://opendsu.com) for OpenDSU, more specifcally [RFC063](https://opendsu.com/rfc063).
