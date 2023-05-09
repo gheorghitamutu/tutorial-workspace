@@ -41,7 +41,7 @@ function processCommand(input, dsuInstance) {
         case 'ls':
             dsuInstance.readDir(currentDirectory, {recursive: true}, (err, files) => {
                 if (err) {
-                    console.error(`Error listing files: ${err}`);
+                    console.error(`Error listing files`);
                 } else {
                     console.log(`Listing directory file contents:\n${files.join('\n')}`);
                 }
@@ -49,6 +49,12 @@ function processCommand(input, dsuInstance) {
             break;
         case 'touch':
             const filePath = args[1];
+
+            if (filePath == undefined) {
+                console.error(`No file path provided`);
+                break;
+            }
+
             let fileToCreate = getAbsolutePath(filePath);
             dsuInstance.writeFile(fileToCreate, '', (err) => {
                 if (err) {
@@ -82,6 +88,12 @@ function processCommand(input, dsuInstance) {
             break;
         case 'mkdir':
             let dirPath = args[1];
+
+            if (dirPath == undefined) {
+                console.error(`No directory path provided`);
+                break;
+            }
+
             let absDirPath = getAbsolutePath(dirPath)
             dsuInstance.createFolder(absDirPath, (err) => {
                 if (err) {
@@ -93,6 +105,12 @@ function processCommand(input, dsuInstance) {
             break;
         case 'rm':
             let fileToRm = args[1];
+
+            if (fileToRm == undefined) {
+                console.error(`No file path provided`);
+                break;
+            }
+
             let absPathToRm = getAbsolutePath(fileToRm)
             if (absPathToRm == currentDirectory) {
                 console.log('Cannot delete current directory')
@@ -109,12 +127,34 @@ function processCommand(input, dsuInstance) {
             let filePathToWrite = args[1];
             let contentToWrite = args[2];
 
-            writeToDsu(dsuInstance, filePathToWrite, contentToWrite);
+            if (filePathToWrite == undefined) {
+                console.error(`No file path provided`);
+                break;
+            }
+
+            if (contentToWrite == undefined) {
+                console.error(`No content to write provided`);
+                break;
+            }
+
+            writeToDsu(dsuInstance, filePathToWrite, contentToWrite)
+            .then(() => {
+                console.log(`Successfully wrote to file ${filePathToWrite}`);
+            })
+            .catch((err) => {
+                console.error(`Error writing to file ${filePathToWrite}: ${err}`);
+            });
+            
             break;
         case 'cat':
             let filePathToRead = args[1];
 
-            // filePathToRead = getAbsolutePath(filePathToRead);
+            if (args[1] == undefined) {
+                console.error(`No file path provided`);
+                break;
+            }
+
+            filePathToRead = getAbsolutePath(filePathToRead);
 
             getFileContents(dsuInstance, filePathToRead).then((content) => {
 
@@ -123,17 +163,29 @@ function processCommand(input, dsuInstance) {
                 console.log('========== File contents: =========')
                 console.log(humanReadableContent);
                 console.log('========== End of content =========')
+            })
+            .catch((err) => {
+                console.error(`File ${filePathToRead} can't be read`);
             });
 
             break;
         case 'sha256':
             let filePathToHash = args[1];
 
+            if (args[1] == undefined) {
+                console.error(`No file path provided`);
+                break;
+            }
+
             filePathToHash = getAbsolutePath(filePathToHash);
 
             calculateHashForFile(dsuInstance, filePathToHash).then((hash) => {
                 console.log(`SHA256 hash of file ${filePathToHash}: ${hash}`);
+            })
+            .catch((err) => {
+                console.error(`File ${filePathToHash} may not exist or is a directory`);
             });
+
             break;
 
         case 'dups':
@@ -157,6 +209,9 @@ function processCommand(input, dsuInstance) {
 
                     console.log(`Total unique files duplicated (once or multiple): ${duplicatesCounts}`);
 
+                })
+                .catch((err) => {
+                    console.error(`Error getting duplicates: ${err}`);
                 });
             break;
         case 'pwd':
@@ -248,7 +303,7 @@ async function getFileContents(dsuInstance, path) {
     return new Promise((resolve, reject) => {
         dsuInstance.readFile(path, (err, data) => {
             if (err) {
-                console.error(`Error reading file ${path}: ${err}`);
+                console.error(`Error reading file ${path}`);
                 reject(err);
             } else {
                 console.log(`Read file ${path}`);
@@ -257,7 +312,7 @@ async function getFileContents(dsuInstance, path) {
 
                 resolve(humanReadableContent);
             }
-        });
+        })
     });
 
 }
@@ -282,7 +337,7 @@ async function listFilesFromDsu(dsuInstance, path, recursive = false, includeFol
             withFileTypes: true,
         }, (err, entries) => {
             if (err) {
-                console.error(`Error listing files: ${err}`);
+                console.error(`Error listing files`);
 
                 reject(err);
 
@@ -319,7 +374,7 @@ async function getDuplicates(dsuInstance, path) {
     let hashToFilesMap = new Map();
 
     for (let file of files) {
-        let hash = await calculateHashForFile(dsuInstance, getAbsolutePath(file));
+        let hash = await calculateHashForFile(dsuInstance, getAbsolutePath(path + '/' + file));
 
 
         if (hashToFilesMap.has(hash)) {
@@ -357,6 +412,10 @@ async function calculateHashForFile(dsuInstance, path) {
             let hash = crypto.createHash('sha256').update(content).digest('hex');
 
             resolve(hash);
+        }).catch((err) => {
+            console.error(`Error calculating hash for file`);
+
+            reject(err);
         });
 
     });
@@ -433,6 +492,14 @@ async function initializeToDefaultDsuCreateIfNotExists() {
         dsu_s.dsus.push(dsu);
 
         fs.writeFileSync('dsu_s.json', JSON.stringify(dsu_s), 'utf8');
+
+        
+        resolver.loadDSU(dsu_s.dsus[0].key, (err, dsuInstance) => {
+            if (err) {
+                throw err;
+            }
+            promptCommand(dsuInstance);
+        });
     }
 }
 
